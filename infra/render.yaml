@@ -1,1 +1,19 @@
+services:
+  - type: web
+    name: ra-platform-backend
+    env: node
+    plan: starter
+    repo: https://github.com/YOUR_GITHUB_USERNAME/ra-platform-2
+    branch: main
+    buildCommand: "cd backend && npm install && npm run build"
+    startCommand: "cd backend && npm run start"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_TOKEN_SECRET
+        sync: false
+      - key: JWT_REFRESH_TOKEN_SECRET
+        sync: false
+      - key: PORT
+        value: 4000
 
