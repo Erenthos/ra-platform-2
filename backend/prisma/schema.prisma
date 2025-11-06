@@ -1,3 +1,7 @@
+// ============================================
+// Prisma Schema for Reverse Auction Platform
+// ============================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,56 +11,83 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// User Model: Buyers and Suppliers
+// ============================================
+
 model User {
-  id        String   @id @default(uuid())
-  name      String?
+  id        String   @id @default(cuid())
+  name      String
   email     String   @unique
   password  String
   role      Role     @default(SUPPLIER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  bids      Bid[]
+
+  // Relationships
   auctions  Auction[] @relation("BuyerAuctions")
+  bids      Bid[]
 }
+
+// ============================================
+// Auction Model: Created by Buyers
+// ============================================
 
 model Auction {
-  id          String   @id @default(uuid())
+  id          String         @id @default(cuid())
   title       String
   description String?
-  createdBy   String
-  buyer       User     @relation("BuyerAuctions", fields: [createdBy], references: [id])
   startsAt    DateTime
   endsAt      DateTime
+  buyerId     String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relationships
+  buyer       User           @relation("BuyerAuctions", fields: [buyerId], references: [id])
   items       AuctionItem[]
   bids        Bid[]
-  createdAt   DateTime @default(now())
 }
+
+// ============================================
+// Auction Items: Each Auction can have many items
+// ============================================
 
 model AuctionItem {
-  id          String   @id @default(uuid())
+  id          String   @id @default(cuid())
   auctionId   String
-  auction     Auction  @relation(fields: [auctionId], references: [id])
-  slNo        Int
   description String
   qty         Float
-  uom         String
+  uom         String?
+
+  auction     Auction  @relation(fields: [auctionId], references: [id])
 }
 
+// ============================================
+// Bid Model: Submitted by Suppliers
+// ============================================
+
 model Bid {
-  id         String   @id @default(uuid())
-  auctionId  String
-  auction    Auction  @relation(fields: [auctionId], references: [id])
-  supplierId String
-  supplier   User     @relation(fields: [supplierId], references: [id])
-  items      Json
-  totalValue Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  supplierId  String
+  auctionId   String
+  items       Json
+  totalValue  Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier    User     @relation(fields: [supplierId], references: [id])
+  auction     Auction  @relation(fields: [auctionId], references: [id])
+
+  // ✅ Composite unique constraint for upsert lookups
+  @@unique([supplierId, auctionId], name: "supplierId_auctionId")
 }
+
+// ============================================
+// Enum Definitions
+// ============================================
 
 enum Role {
   BUYER
   SUPPLIER
-  ADMIN
 }
-
