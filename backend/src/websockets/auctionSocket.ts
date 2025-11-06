@@ -1,6 +1,6 @@
 // backend/src/websockets/auctionSocket.ts
 import { Server, Socket } from 'socket.io';
-import prisma from '../prismaClient';
+import prisma from '../prismaClient.js';
 
 export default function auctionSocketHandler(io: Server, socket: Socket) {
   console.log(`⚡ New socket connected: ${socket.id}`);
