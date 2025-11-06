@@ -1,12 +1,29 @@
+# =============================================
+# Render Deployment Configuration
+# Unified App: Backend (API + Socket.IO) + Frontend (Next.js)
+# =============================================
+
 services:
   - type: web
-    name: ra-platform-backend
+    name: ra-platform
     env: node
     plan: starter
+    region: oregon   # or singapore / frankfurt — choose nearest to your users
+
+    # 👇 The repository location (keep root as is)
     repo: https://github.com/YOUR_GITHUB_USERNAME/ra-platform-2
     branch: main
-    buildCommand: "cd backend && npm install && npm run build"
-    startCommand: "cd backend && npm run start"
+
+    # 👇 Root-level commands — builds frontend & backend together
+    buildCommand: |
+      npm install
+      cd backend && npm install && npm run build
+      cd ../frontend && npm install && npm run export
+      echo "✅ Build complete for both backend and frontend"
+
+    startCommand: |
+      cd backend && npm run start
+
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -16,4 +33,7 @@ services:
         sync: false
       - key: PORT
         value: 4000
-
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ra-platform.onrender.com
