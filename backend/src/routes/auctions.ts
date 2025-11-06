@@ -3,72 +3,36 @@ import prisma from "../prismaClient.js";
 
 const router = Router();
 
-/**
- * POST /api/auctions
- * Body: { title, description?, buyerId, startsAt, endsAt, items: [{ description, qty, uom, slNo }] }
- */
+// ✅ Create new auction
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { title, description, buyerId, startsAt, endsAt, items } = req.body;
-    if (!title || !buyerId || !startsAt || !endsAt) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+    const { title, description, startsAt, endsAt } = req.body;
 
     const auction = await prisma.auction.create({
       data: {
         title,
-        description: description ?? null,
-        buyerId,
+        description,
         startsAt: new Date(startsAt),
         endsAt: new Date(endsAt),
-        items: {
-          create: (items || []).map((it: any) => ({
-            description: it.description,
-            qty: Number(it.qty),
-            uom: it.uom ?? null,
-            // slNo is optional in schema; include if provided
-            ...(it.slNo !== undefined ? { slNo: Number(it.slNo) } : {}),
-          })),
-        },
       },
-      include: { items: true },
     });
 
     res.json(auction);
   } catch (err) {
-    console.error("Create auction error:", err);
+    console.error("Error creating auction:", err);
     res.status(500).json({ error: "Failed to create auction" });
   }
 });
 
-// GET /api/auctions
-router.get("/", async (req: Request, res: Response) => {
+// ✅ Get all active auctions
+router.get("/", async (_req: Request, res: Response) => {
   try {
     const auctions = await prisma.auction.findMany({
-      include: { items: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: { startsAt: "desc" },
     });
     res.json(auctions);
   } catch (err) {
-    console.error("Fetch auctions error:", err);
     res.status(500).json({ error: "Failed to fetch auctions" });
-  }
-});
-
-// GET /api/auctions/:id
-router.get("/:id", async (req: Request, res: Response) => {
-  try {
-    const id = req.params.id;
-    const auction = await prisma.auction.findUnique({
-      where: { id },
-      include: { items: true, bids: true },
-    });
-
-    if (!auction) return res.status(404).json({ error: "Auction not found" });
-    res.json(auction);
-  } catch (err) {
-    console.error("Fetch auction error:", err);
-    res.status(500).json({ error: "Failed to fetch auction" });
   }
 });
 
