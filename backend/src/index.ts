@@ -1,83 +1,71 @@
 import express, { Request, Response } from "express";
 import http from "http";
+import { Server } from "socket.io";
 import cors from "cors";
-import dotenv from "dotenv";
 import path from "path";
-import { Server as SocketIOServer } from "socket.io";
-
+import dotenv from "dotenv";
 import prisma from "./prismaClient";
-import auctionSocketHandler from "./websockets/auctionSocket";
+
 import authRoutes from "./routes/auth";
 import auctionRoutes from "./routes/auctions";
 import bidRoutes from "./routes/bids";
 
-// ---------------------------------------------
-// Load environment variables
-// ---------------------------------------------
 dotenv.config();
 
-// ---------------------------------------------
-// Express + HTTP + Socket.IO Setup
-// ---------------------------------------------
 const app = express();
-const server = http.createServer(app);
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: "*",
-  },
-});
-
-const PORT = process.env.PORT || 4000;
-const __dirname = path.resolve();
-
-// ---------------------------------------------
-// Middleware
-// ---------------------------------------------
 app.use(cors());
 app.use(express.json());
 
-// ---------------------------------------------
-// API Routes
-// ---------------------------------------------
+// ✅ Fix for CommonJS runtime on Render
+const __dirname = path.resolve();
+
+// ----------------------
+// Routes
+// ----------------------
 app.use("/api/auth", authRoutes);
 app.use("/api/auctions", auctionRoutes);
 app.use("/api/bids", bidRoutes);
 
-// ---------------------------------------------
-// WebSocket: Real-time Auction Updates
-// ---------------------------------------------
-io.on("connection", (socket) => {
-  console.log(`⚡ Socket connected: ${socket.id}`);
-  auctionSocketHandler(io, socket);
-});
-
-// ---------------------------------------------
-// Serve Frontend (Next.js static build)
-// ---------------------------------------------
-const frontendPath = path.join(__dirname, "frontend/out");
-
+// ----------------------
+// Serve frontend (static)
+// ----------------------
+const frontendPath = path.join(__dirname, "../frontend/out");
 app.use(express.static(frontendPath));
 
-app.get("*", (req: Request, res: Response) => {
+// Fallback for client-side routing
+app.get("*", (_req: Request, res: Response) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// ---------------------------------------------
-// Health Check Route
-// ---------------------------------------------
-app.get("/api/health", async (req: Request, res: Response) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: "ok", message: "Backend & DB running fine 🚀" });
-  } catch (error) {
-    console.error("❌ Health check failed:", error);
-    res.status(500).json({ status: "error", error });
-  }
+// ----------------------
+// HTTP + Socket.IO Server
+// ----------------------
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
-// ---------------------------------------------
+// ----------------------
+// Socket.IO: Live Rankings
+// ----------------------
+io.on("connection", (socket) => {
+  console.log("🟢 New client connected:", socket.id);
+
+  // Example: broadcast new rankings
+  socket.on("ranking:update", (data) => {
+    io.emit("ranking:update", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Client disconnected:", socket.id);
+  });
+});
+
+// ----------------------
 // Start Server
-// ---------------------------------------------
+// ----------------------
+const PORT = process.env.PORT || 4000;
+
 server.listen(PORT, () => {
-  console.log(`✅ Reverse Auction Platform running on port ${PORT}`);
+  console.log(`🚀 Reverse Auction backend running on port ${PORT}`);
 });
