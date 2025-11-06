@@ -1,157 +1,113 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import axios from "axios";
 import { io, Socket } from "socket.io-client";
+import axios from "axios";
 
 interface Auction {
-  id: string;
+  id: number;
   title: string;
-  description?: string;
+  description: string | null;
   startsAt: string;
   endsAt: string;
 }
 
-interface Rank {
-  supplierId: string;
-  rank: number;
-}
-
-export default function SupplierPage() {
+export default function SupplierDashboard() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
-  const [bids, setBids] = useState<{ [key: string]: number }>({});
-  const [ranks, setRanks] = useState<Rank[]>([]);
-  const [supplierId, setSupplierId] = useState<string>("");
+  const [activeRanks, setActiveRanks] = useState<{ [key: string]: number }>({});
   const socketRef = useRef<Socket | null>(null);
 
-  // ✅ Fetch live auctions from backend
+  // ✅ Initialize Socket and fetch auctions
   useEffect(() => {
-    const fetchAuctions = async () => {
-      try {
-        const res = await axios.get("/api/auctions");
-        setAuctions(res.data);
-      } catch (err) {
-        console.error("Failed to fetch auctions:", err);
-      }
-    };
+    const socket = io();
+    socketRef.current = socket;
 
-    fetchAuctions();
-  }, []);
-
-  // ✅ Setup socket for live rank updates
-  useEffect(() => {
-    socketRef.current = io();
-
-    socketRef.current.on("ranking:update", (data: { ranks: Rank[] }) => {
-      setRanks(data.ranks);
+    // Listen for ranking updates
+    socket.on("ranking:update", (data) => {
+      setActiveRanks(data.ranks);
     });
 
+    // ✅ Listen for new auction broadcasts
+    socket.on("auction:new", (auction: Auction) => {
+      console.log("📢 New auction received:", auction.title);
+      setAuctions((prev) => [auction, ...prev]);
+    });
+
+    // Fetch initial auctions from backend
+    axios
+      .get("/api/auctions")
+      .then((res) => setAuctions(res.data))
+      .catch((err) => console.error("Error loading auctions:", err));
+
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
     };
   }, []);
 
-  // ✅ Handle supplier input (for testing/demo, can be pre-filled)
-  useEffect(() => {
-    // Generate a mock supplier ID if not logged in (demo mode)
-    if (!supplierId) {
-      const randomId = "supplier-" + Math.floor(Math.random() * 1000);
-      setSupplierId(randomId);
-    }
-  }, [supplierId]);
-
-  // ✅ Submit bid to backend
-  const handleBidSubmit = async (auctionId: string) => {
-    try {
-      const bidValue = bids[auctionId];
-      if (!bidValue) return alert("Please enter a bid amount first!");
-
-      await axios.post(`/api/bids/${auctionId}`, {
-        supplierId,
-        items: [{ itemId: auctionId, rate: bidValue }], // simplified example
-      });
-
-      alert(`Bid submitted for auction ${auctionId}!`);
-    } catch (err) {
-      console.error("Failed to submit bid:", err);
-      alert("Failed to submit bid.");
-    }
-  };
-
-  // ✅ Find this supplier's rank (if available)
-  const getMyRank = () => {
-    const my = ranks.find((r) => r.supplierId === supplierId);
-    return my ? `L${my.rank}` : "—";
-  };
-
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow p-8">
-        <h1 className="text-2xl font-bold mb-6 text-blue-700">
-          Live Auctions for Suppliers
-        </h1>
-
-        <div className="mb-4 text-sm text-gray-600">
-          <span className="font-semibold">Your Supplier ID:</span>{" "}
-          <span className="text-gray-800">{supplierId}</span>
-        </div>
+    <main className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto">
+        <header className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-blue-700">
+            Supplier Dashboard
+          </h1>
+          <button
+            onClick={() => (window.location.href = "/logout")}
+            className="text-sm bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg"
+          >
+            Logout
+          </button>
+        </header>
 
         {auctions.length === 0 ? (
-          <p className="text-gray-500 text-sm">
-            No active auctions at the moment.
+          <p className="text-gray-500 text-center mt-12">
+            No active auctions available yet.
           </p>
         ) : (
-          <table className="w-full border-collapse border border-gray-200">
-            <thead>
-              <tr className="bg-gray-100 text-left text-gray-700">
-                <th className="border border-gray-200 px-4 py-2">Title</th>
-                <th className="border border-gray-200 px-4 py-2">Description</th>
-                <th className="border border-gray-200 px-4 py-2 text-center">
-                  Your Bid (Total)
-                </th>
-                <th className="border border-gray-200 px-4 py-2 text-center">
-                  Submit
-                </th>
-                <th className="border border-gray-200 px-4 py-2 text-center">
-                  Your Rank
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {auctions.map((auction) => (
-                <tr key={auction.id} className="hover:bg-gray-50">
-                  <td className="border border-gray-200 px-4 py-2 font-semibold">
-                    {auction.title}
-                  </td>
-                  <td className="border border-gray-200 px-4 py-2">
-                    {auction.description ?? "—"}
-                  </td>
-                  <td className="border border-gray-200 px-4 py-2 text-center">
-                    <input
-                      type="number"
-                      className="border rounded px-2 py-1 w-28 text-center"
-                      placeholder="Enter ₹"
-                      value={bids[auction.id] || ""}
-                      onChange={(e) =>
-                        setBids({ ...bids, [auction.id]: Number(e.target.value) })
-                      }
-                    />
-                  </td>
-                  <td className="border border-gray-200 px-4 py-2 text-center">
-                    <button
-                      onClick={() => handleBidSubmit(auction.id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded-lg transition"
-                    >
-                      Submit
-                    </button>
-                  </td>
-                  <td className="border border-gray-200 px-4 py-2 text-center font-semibold text-green-700">
-                    {getMyRank()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {auctions.map((auction) => (
+              <div
+                key={auction.id}
+                className="bg-white shadow-md rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition"
+              >
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                  {auction.title}
+                </h2>
+                <p className="text-gray-600 text-sm mb-3">
+                  {auction.description || "No description provided."}
+                </p>
+                <p className="text-sm text-gray-500">
+                  🕒 Starts:{" "}
+                  <span className="font-medium text-gray-700">
+                    {new Date(auction.startsAt).toLocaleString()}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-500 mb-4">
+                  ⏰ Ends:{" "}
+                  <span className="font-medium text-gray-700">
+                    {new Date(auction.endsAt).toLocaleString()}
+                  </span>
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">
+                    Your Rank:{" "}
+                    <span className="font-semibold text-blue-700">
+                      {activeRanks[auction.id] || "-"}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() =>
+                      alert(`Place bid for auction ID: ${auction.id}`)
+                    }
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg"
+                  >
+                    Place Bid
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </main>
