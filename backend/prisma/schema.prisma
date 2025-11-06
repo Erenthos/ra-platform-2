@@ -1,5 +1,5 @@
 // =======================================================
-//  REVERSE AUCTION PLATFORM — PRISMA SCHEMA (FINAL BUILD)
+// REVERSE AUCTION PLATFORM — FIXED TABLE MAPPINGS
 // =======================================================
 
 generator client {
@@ -12,69 +12,72 @@ datasource db {
 }
 
 // -------------------------------------------------------
-// USERS TABLE
+// USERS TABLE  →  public.users
 // -------------------------------------------------------
 model User {
-  id        Int       @id @default(autoincrement())
-  name      String
-  email     String    @unique
-  password  String
-  role      String    // "BUYER" or "SUPPLIER"
-  createdAt DateTime  @default(now())
+  id        Int       @id @default(autoincrement()) @map("id")
+  name      String    @map("name")
+  email     String    @unique @map("email")
+  password  String    @map("password")
+  role      String    @map("role")
+  createdAt DateTime  @default(now()) @map("created_at")
 
-  // Relations
   auctions  Auction[] @relation("BuyerAuctions")
   bids      Bid[]
+
+  @@map("users")
 }
 
 // -------------------------------------------------------
-// AUCTIONS TABLE
+// AUCTIONS TABLE  →  public.auctions
 // -------------------------------------------------------
 model Auction {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  startsAt    DateTime
-  endsAt      DateTime
-  createdAt   DateTime  @default(now())
+  id          Int       @id @default(autoincrement()) @map("id")
+  title       String    @map("title")
+  description String?   @map("description")
+  startsAt    DateTime  @map("starts_at")
+  endsAt      DateTime  @map("ends_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
-  // Relation to Buyer (User)
   buyer     User     @relation("BuyerAuctions", fields: [buyerId], references: [id])
-  buyerId   Int
+  buyerId   Int      @map("created_by")
 
-  // One-to-many with bids
   bids      Bid[]
+  items     Item[]
+
+  @@map("auctions")
 }
 
 // -------------------------------------------------------
-// BIDS TABLE
+// BIDS TABLE  →  public.bids
 // -------------------------------------------------------
 model Bid {
-  id          Int       @id @default(autoincrement())
-  totalValue  Float
-  submittedAt DateTime  @default(now())
+  id          Int       @id @default(autoincrement()) @map("id")
+  totalValue  Float     @map("total_value")
+  submittedAt DateTime  @default(now()) @map("submitted_at")
 
-  // Relations
   auction     Auction   @relation(fields: [auctionId], references: [id])
-  auctionId   Int
+  auctionId   Int       @map("auction_id")
 
   supplier    User      @relation(fields: [supplierId], references: [id])
-  supplierId  Int
+  supplierId  Int       @map("supplier_id")
 
-  // Each supplier can place only one bid per auction
   @@unique([auctionId, supplierId], name: "auctionId_supplierId")
+  @@map("bids")
 }
 
 // -------------------------------------------------------
-// OPTIONAL: ITEMS TABLE (for multi-item auctions)
+// ITEMS TABLE  →  public.items
 // -------------------------------------------------------
 model Item {
-  id          Int      @id @default(autoincrement())
-  name        String
-  quantity    Float?
-  uom         String?
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement()) @map("id")
+  name      String   @map("name")
+  quantity  Float?   @map("quantity")
+  uom       String?  @map("uom")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  auction     Auction  @relation(fields: [auctionId], references: [id])
-  auctionId   Int
+  auction   Auction  @relation(fields: [auctionId], references: [id])
+  auctionId Int      @map("auction_id")
+
+  @@map("items")
 }
