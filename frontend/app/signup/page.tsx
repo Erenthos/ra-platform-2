@@ -1,91 +1,87 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import axios from "axios";
-import AuthCard from "../../components/AuthCard";
-import { Auth } from "../../lib/auth";
+import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("BUYER");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "SUPPLIER",
-  });
-  const [message, setMessage] = useState("");
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`,
-        form
-      );
-      Auth.saveUser(res.data.token, res.data.user);
-
-      const redirect = res.data.user.role === "BUYER" ? "/buyer" : "/supplier";
-      router.push(redirect);
+      const res = await axios.post("/api/auth/signup", {
+        name,
+        email,
+        password,
+        role,
+      });
+      alert("✅ Signup successful!");
+      router.push("/login");
     } catch (err: any) {
-      setMessage(err.response?.data?.error || "Signup failed");
+      console.error("Signup failed:", err.response?.data || err.message);
+      alert("❌ Signup failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <AuthCard
-      title="Create Account"
-      footer={
-        <p>
-          Already have an account?{" "}
-          <a href="/login" className="text-blue-600 font-medium hover:underline">
-            Login
-          </a>
-        </p>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          placeholder="Full Name"
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2"
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
-        <select
-          className="w-full border border-gray-300 rounded px-3 py-2"
-          value={form.role}
-          onChange={(e) => setForm({ ...form, role: e.target.value })}
-        >
-          <option value="SUPPLIER">Supplier</option>
-          <option value="BUYER">Buyer</option>
-        </select>
-        <button
-          type="submit"
-          className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Sign Up
-        </button>
-      </form>
-      {message && <p className="text-red-600 mt-3 text-center">{message}</p>}
-    </AuthCard>
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
+        <h1 className="text-2xl font-bold text-blue-700 mb-4 text-center">
+          Create Account
+        </h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+            required
+          />
+          <input
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+            required
+          />
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+            required
+          >
+            <option value="BUYER">Buyer</option>
+            <option value="SUPPLIER">Supplier</option>
+          </select>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-lg font-semibold transition"
+          >
+            {loading ? "Creating..." : "Sign Up"}
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }
-
