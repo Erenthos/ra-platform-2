@@ -1,27 +1,33 @@
-// backend/src/routes/auctions.ts
-import express from 'express';
-import prisma from '../prismaClient';
+import { Router, Request, Response } from "express";
+import prisma from "../prismaClient";
 
-const router = express.Router();
+const router = Router();
 
-// Create new auction (Buyer)
-router.post('/', async (req, res) => {
+/**
+ * POST /api/auctions
+ * Body: { title, description?, buyerId, startsAt, endsAt, items: [{ description, qty, uom, slNo }] }
+ */
+router.post("/", async (req: Request, res: Response) => {
   try {
-    const { title, description, createdBy, startsAt, endsAt, items } = req.body;
+    const { title, description, buyerId, startsAt, endsAt, items } = req.body;
+    if (!title || !buyerId || !startsAt || !endsAt) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
     const auction = await prisma.auction.create({
       data: {
         title,
-        description,
-        createdBy,
+        description: description ?? null,
+        buyerId,
         startsAt: new Date(startsAt),
         endsAt: new Date(endsAt),
         items: {
-          create: items.map((it: any) => ({
-            slNo: it.slNo,
+          create: (items || []).map((it: any) => ({
             description: it.description,
-            qty: it.qty,
-            uom: it.uom,
+            qty: Number(it.qty),
+            uom: it.uom ?? null,
+            // slNo is optional in schema; include if provided
+            ...(it.slNo !== undefined ? { slNo: Number(it.slNo) } : {}),
           })),
         },
       },
@@ -30,36 +36,40 @@ router.post('/', async (req, res) => {
 
     res.json(auction);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create auction' });
+    console.error("Create auction error:", err);
+    res.status(500).json({ error: "Failed to create auction" });
   }
 });
 
-// Get all auctions
-router.get('/', async (req, res) => {
+// GET /api/auctions
+router.get("/", async (req: Request, res: Response) => {
   try {
     const auctions = await prisma.auction.findMany({
       include: { items: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
     res.json(auctions);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch auctions' });
+    console.error("Fetch auctions error:", err);
+    res.status(500).json({ error: "Failed to fetch auctions" });
   }
 });
 
-// Get single auction by ID
-router.get('/:id', async (req, res) => {
+// GET /api/auctions/:id
+router.get("/:id", async (req: Request, res: Response) => {
   try {
+    const id = req.params.id;
     const auction = await prisma.auction.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: { items: true, bids: true },
     });
+
+    if (!auction) return res.status(404).json({ error: "Auction not found" });
     res.json(auction);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch auction' });
+    console.error("Fetch auction error:", err);
+    res.status(500).json({ error: "Failed to fetch auction" });
   }
 });
 
 export default router;
-
