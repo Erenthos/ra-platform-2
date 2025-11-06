@@ -29,14 +29,13 @@ app.use("/api/auctions", auctionRoutes);
 app.use("/api/bids", bidRoutes);
 
 // ----------------------
-// Serve frontend (corrected Render path)
+// Serve frontend (Render compatible path)
 // ----------------------
-// Note: When compiled, this file lives at /opt/render/project/src/backend/dist
-// So we go up two levels → ../../frontend/out
+// When compiled, this file lives inside: /backend/dist
+// We go two levels up to reach /frontend/out
 const frontendPath = path.join(__dirname, "../../frontend/out");
 
 app.use(express.static(frontendPath));
-
 app.get("*", (_req: Request, res: Response) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
@@ -50,13 +49,20 @@ const io = new Server(server, {
 });
 
 // ----------------------
-// Socket.IO: Live Rankings
+// Socket.IO: Realtime Events
 // ----------------------
 io.on("connection", (socket) => {
   console.log("🟢 New client connected:", socket.id);
 
+  // ✅ Live ranking update from bids
   socket.on("ranking:update", (data) => {
     io.emit("ranking:update", data);
+  });
+
+  // ✅ Live new auction broadcast (from buyers)
+  socket.on("auction:new", (data) => {
+    console.log("📢 Broadcasting new auction:", data.title || "Untitled");
+    io.emit("auction:new", data);
   });
 
   socket.on("disconnect", () => {
