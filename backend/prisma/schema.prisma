@@ -1,43 +1,80 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+// =======================================================
+//  REVERSE AUCTION PLATFORM — PRISMA SCHEMA (FINAL BUILD)
+// =======================================================
 
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------
+// USERS TABLE
+// -------------------------------------------------------
 model User {
   id        Int       @id @default(autoincrement())
   name      String
   email     String    @unique
   password  String
-  role      String
+  role      String    // "BUYER" or "SUPPLIER"
   createdAt DateTime  @default(now())
+
+  // Relations
   auctions  Auction[] @relation("BuyerAuctions")
   bids      Bid[]
 }
 
+// -------------------------------------------------------
+// AUCTIONS TABLE
+// -------------------------------------------------------
 model Auction {
   id          Int       @id @default(autoincrement())
   title       String
   description String?
   startsAt    DateTime
   endsAt      DateTime
-  buyer       User      @relation("BuyerAuctions", fields: [buyerId], references: [id])
-  buyerId     Int
   createdAt   DateTime  @default(now())
-  bids        Bid[]
+
+  // Relation to Buyer (User)
+  buyer     User     @relation("BuyerAuctions", fields: [buyerId], references: [id])
+  buyerId   Int
+
+  // One-to-many with bids
+  bids      Bid[]
 }
 
+// -------------------------------------------------------
+// BIDS TABLE
+// -------------------------------------------------------
 model Bid {
   id          Int       @id @default(autoincrement())
-  auction     Auction   @relation(fields: [auctionId], references: [id])
-  auctionId   Int
-  supplier    User      @relation(fields: [supplierId], references: [id])
-  supplierId  Int
   totalValue  Float
   submittedAt DateTime  @default(now())
 
-  @@unique([auctionId, supplierId])
+  // Relations
+  auction     Auction   @relation(fields: [auctionId], references: [id])
+  auctionId   Int
+
+  supplier    User      @relation(fields: [supplierId], references: [id])
+  supplierId  Int
+
+  // Each supplier can place only one bid per auction
+  @@unique([auctionId, supplierId], name: "auctionId_supplierId")
+}
+
+// -------------------------------------------------------
+// OPTIONAL: ITEMS TABLE (for multi-item auctions)
+// -------------------------------------------------------
+model Item {
+  id          Int      @id @default(autoincrement())
+  name        String
+  quantity    Float?
+  uom         String?
+  createdAt   DateTime @default(now())
+
+  auction     Auction  @relation(fields: [auctionId], references: [id])
+  auctionId   Int
 }
