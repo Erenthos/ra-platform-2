@@ -3,14 +3,13 @@ import http from "http";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { fileURLToPath } from "url";
 import { Server as SocketIOServer } from "socket.io";
 
-import prisma from "./prismaClient.js";
-import auctionSocketHandler from "./websockets/auctionSocket.js";
-import authRoutes from "./routes/auth.js";
-import auctionRoutes from "./routes/auctions.js";
-import bidRoutes from "./routes/bids.js";
+import prisma from "./prismaClient";
+import auctionSocketHandler from "./websockets/auctionSocket";
+import authRoutes from "./routes/auth";
+import auctionRoutes from "./routes/auctions";
+import bidRoutes from "./routes/bids";
 
 // ---------------------------------------------
 // Load environment variables
@@ -24,13 +23,12 @@ const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: "*", // Same-origin deployment, safe to allow all
+    origin: "*",
   },
 });
 
 const PORT = process.env.PORT || 4000;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve();
 
 // ---------------------------------------------
 // Middleware
@@ -54,14 +52,12 @@ io.on("connection", (socket) => {
 });
 
 // ---------------------------------------------
-// Serve Frontend (Static Exported Next.js Build)
+// Serve Frontend (Next.js static build)
 // ---------------------------------------------
-// Note: You must have run `npm run export` in /frontend to generate /frontend/out
-const frontendPath = path.join(__dirname, "../../frontend/out");
+const frontendPath = path.join(__dirname, "frontend/out");
 
 app.use(express.static(frontendPath));
 
-// Any route not starting with /api will serve the frontend
 app.get("*", (req: Request, res: Response) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
@@ -80,9 +76,8 @@ app.get("/api/health", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------
-// Start the Server
+// Start Server
 // ---------------------------------------------
 server.listen(PORT, () => {
   console.log(`✅ Reverse Auction Platform running on port ${PORT}`);
-  console.log(`🌐 Visit: http://localhost:${PORT}`);
 });
