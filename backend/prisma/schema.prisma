@@ -1,5 +1,6 @@
 // =======================================================
-// REVERSE AUCTION PLATFORM — FIXED TABLE MAPPINGS
+// REVERSE AUCTION PLATFORM — FINAL PRISMA SCHEMA
+// Compatible with Neon (PostgreSQL) lowercase tables
 // =======================================================
 
 generator client {
@@ -11,9 +12,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// -------------------------------------------------------
-// USERS TABLE  →  public.users
-// -------------------------------------------------------
+// =======================================================
+// USERS TABLE (maps to "public.users")
+// =======================================================
 model User {
   id        Int       @id @default(autoincrement()) @map("id")
   name      String    @map("name")
@@ -22,15 +23,16 @@ model User {
   role      String    @map("role")
   createdAt DateTime  @default(now()) @map("created_at")
 
+  // Relations
   auctions  Auction[] @relation("BuyerAuctions")
   bids      Bid[]
 
-  @@map("users")
+  @@map("users") // 👈 explicit mapping to lowercase table
 }
 
-// -------------------------------------------------------
-// AUCTIONS TABLE  →  public.auctions
-// -------------------------------------------------------
+// =======================================================
+// AUCTIONS TABLE (maps to "public.auctions")
+// =======================================================
 model Auction {
   id          Int       @id @default(autoincrement()) @map("id")
   title       String    @map("title")
@@ -39,6 +41,7 @@ model Auction {
   endsAt      DateTime  @map("ends_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 
+  // Buyer relation
   buyer     User     @relation("BuyerAuctions", fields: [buyerId], references: [id])
   buyerId   Int      @map("created_by")
 
@@ -48,14 +51,15 @@ model Auction {
   @@map("auctions")
 }
 
-// -------------------------------------------------------
-// BIDS TABLE  →  public.bids
-// -------------------------------------------------------
+// =======================================================
+// BIDS TABLE (maps to "public.bids")
+// =======================================================
 model Bid {
   id          Int       @id @default(autoincrement()) @map("id")
   totalValue  Float     @map("total_value")
   submittedAt DateTime  @default(now()) @map("submitted_at")
 
+  // Relations
   auction     Auction   @relation(fields: [auctionId], references: [id])
   auctionId   Int       @map("auction_id")
 
@@ -66,9 +70,9 @@ model Bid {
   @@map("bids")
 }
 
-// -------------------------------------------------------
-// ITEMS TABLE  →  public.items
-// -------------------------------------------------------
+// =======================================================
+// ITEMS TABLE (maps to "public.items")
+// =======================================================
 model Item {
   id        Int      @id @default(autoincrement()) @map("id")
   name      String   @map("name")
